@@ -109,6 +109,25 @@
             # FIXME: hardcoded binaries in tests, e.g. clang-14, llvm-strip-14
             doCheck = false;
           };
+
+          hello-world = with pkgs; buildGoModule rec {
+            pname = "hello-world";
+            version = "0.0.1";
+            src = ./hello-world;
+            nativeBuildInputs = [
+              bpf2go
+              buildPackages.clang_14
+              buildPackages.llvm_14
+              glibc_multi
+            ];
+            buildInputs = [
+              libbpf_1
+            ];
+            vendorHash = "sha256-iw3HIkGXFQu/TgyLhJb9J80QU3+Pl1DxvusZxsNMPlI=";
+            postConfigure = ''
+              go generate ./...
+            '';
+          };
         };
       }
     );
