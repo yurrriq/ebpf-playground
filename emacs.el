@@ -61,8 +61,16 @@
   :config (global-hl-todo-mode t))
 
 (use-package lsp-mode
-  :hook ((go-mode . lsp-deferred))
+  :hook ((go-mode . lsp-deferred)
+             (rustic-mode . lsp-deferred))
   :commands (lsp lsp-deferred)
+  :custom
+  (lsp-eldoc-render-all t)
+  (lsp-idle-delay 0.6)
+  (lsp-modeline-code-actions-enable nil)
+  (lsp-rust-analyzer-cargo-watch-command "clippy")
+  (lsp-rust-analyzer-server-display-inlay-hints t)
+  (lsp-rust-server 'rust-analyzer)
   :config
   (advice-add 'lsp :before #'direnv-update-environment)
   (add-to-list 'lsp-language-id-configuration '(nix-mode . "nix"))
@@ -73,9 +81,16 @@
                     :server-id 'nix)))
 
 (use-package lsp-ui
-  :hook (go-mode . lsp-ui-mode)
+  :hook ((go-mode . lsp-ui-mode)
+             (rustic-mode . lsp-ui-mode))
+  :custom
+  (lsp-ui-peek-always-show t)
+  (lsp-ui-doc-position 'bottom)
+  (lsp-ui-sideline-show-hover t)
   :config
-  (setq lsp-ui-doc-position 'bottom))
+  (setq lsp-ui-doc-position 'bottom)
+  ;; NOTE: https://github.com/emacs-lsp/lsp-ui/issues/285
+  (set-face-attribute 'markdown-code-face nil :family "Iosevka Nerd Font" :height 100))
 
 (use-package magit
   :demand
@@ -98,6 +113,44 @@
 
 (use-package rainbow-delimiters
   :hook (prog-mode . rainbow-delimiters-mode))
+
+(use-package rustic
+  :bind (:map rustic-mode-map
+              ("M-j" . lsp-ui-imenu)
+              ("M-?" . lsp-find-references)
+              ("C-c C-c l" . flycheck-list-errors)
+              ("C-c C-c a" . lsp-execute-code-action)
+              ("C-c C-c r" . lsp-rename)
+              ("C-c C-c q" . lsp-workspace-restart)
+              ("C-c C-c Q" . lsp-workspace-shutdown)
+              ("C-c C-c s" . lsp-rust-analyzer-status))
+  :hook (rustic-mode . eb/rustic-mode-hook)
+  :mode ("\\.rs\\'" . rustic-mode)
+  :config
+  (setq rustic-format-on-save t)
+  :custom
+  ;; https://rust-lang.github.io/rustfmt/
+  (rustic-rustfmt-config-alist
+   '(("blank_lines_upper_bound" . 2)
+     ("combine_control_expr" . "false")
+     ("comment_width" . 80)
+     ("format_code_in_doc_comments" . "true")
+     ("format_strings" . "true")
+     ("group_imports" . "StdExternalCrate")
+     ("imports_granularity" . "Module")
+     ("match_block_trailing_comma" . "true")
+     ("max_width" . 80)
+     ("reorder_impl_items" . "true")
+     ("space_after_colon" . "true")
+     ("space_before_colon" . "false")
+     ("struct_field_align_threshold" . 20)
+     ("use_try_shorthand" . "true")
+     ("wrap_comments" . "true"))))
+
+(defun eb/rustic-mode-hook ()
+  ;; NOTE: https://github.com/brotzeit/rustic/issues/253
+  (when buffer-file-name
+    (setq-local buffer-save-without-query t)))
 
 (use-package smex
   :demand
