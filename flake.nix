@@ -10,7 +10,15 @@
       };
       url = "github:nix-community/emacs-overlay";
     };
+    fenix = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:nix-community/fenix";
+    };
     flake-utils.url = "github:numtide/flake-utils";
+    naersk = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:nmattia/naersk";
+    };
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     nixpkgs-stable.url = "github:nixos/nixpkgs/release-23.05";
     pre-commit-hooks = {
@@ -27,16 +35,22 @@
     };
   };
 
-  outputs = { self, emacs-overlay, flake-utils, nixpkgs, pre-commit-hooks, treefmt-nix, ... }:
+  outputs = inputs@{ self, flake-utils, nixpkgs, pre-commit-hooks, treefmt-nix, ... }:
     {
       overlays.default = _final: prev: {
         inherit (self.packages.${prev.system}) bpf2go;
+
+        myEmacs = prev.emacsWithPackagesFromUsePackage {
+          alwaysEnsure = true;
+          config = ./emacs.el;
+        };
       };
     } // flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
       let
         pkgs = import nixpkgs {
           overlays = [
-            emacs-overlay.overlay
+            inputs.emacs-overlay.overlay
+            inputs.fenix.overlays.default
             self.overlays.default
           ];
           inherit system;
@@ -65,20 +79,29 @@
             };
             buildInputs = [
               bpf2go
+              bpf-linker
+              bpftool
               bpftools
+              cargo-generate
               (
-                emacsWithPackagesFromUsePackage {
-                  alwaysEnsure = true;
-                  config = ./emacs.el;
-                }
+                fenix.complete.withComponents [
+                  "cargo"
+                  "clippy"
+                  "rust-src"
+                  "rustc"
+                  "rustfmt"
+                ]
               )
               glibc_multi
               go
               gopls
               gotools
               libbpf_1
+              myEmacs
+              nixpkgs-fmt
               revive
               rnix-lsp
+              rust-analyzer-nightly
             ];
             inherit (self.checks.${system}.pre-commit-check) shellHook;
           };
